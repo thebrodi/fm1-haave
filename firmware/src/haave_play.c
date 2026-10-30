@@ -14,8 +14,9 @@
  *   effect on the next beat, a release ends it at the end of the beat it is in (a tap: one beat). HOME: WARP.
  * Every note comes from the scale of the world (major or natural minor, from haave_root) and mostly from the chord
  * sounding now: nothing can clash.
- * Parts: PAD and SHIMMER on part 1, ARP SPARKLE MELODY on part 2 (struck bells), BASS on 3, CHOIR on 4; the instrument
- * borrows one (SYNTH 4, BELLS 2, BASS 3). The FM-1 sounds 8 voices across the parts (core.h NVOICE): the held layers
+ * Parts: PAD and SHIMMER on part 1, ARP SPARKLE MELODY on part 2 (struck: the world's tone, a marimba, wood, bells),
+ * BASS on 3, CHOIR on 4; the instrument borrows one (SYNTH 4, BELLS 2: the world's bells, a second patch there, BASS 3),
+ * handing it over gently (haave_ho). The FM-1 sounds 8 voices across the parts (core.h NVOICE): the held layers
  * use at most 6 (pad 3, shimmer 1, bass 1, choir 1), the instrument what is left but one, a layer's bell steps aside
  * when none is free (haave_strike), and a held note the budget takes anyway comes back (haave_heal). */
 #define HAAVE_PAD 0u
@@ -287,7 +288,10 @@ static void haave_strike(uint32_t layer, uint32_t part, uint32_t note, uint32_t 
     }
     if (haave_bn[k])
         trk_note_off(&trk[HAAVE_BELL], haave_bn[k]);
+    fm6_alt_next = (uint8_t)(user != 0);             /* (by hand, the chimes, the gong: the world's bells; the layers
+                                                      * strike its tone: eng_fm6.c fm6_alt, haave_ui.c) */
     trk_note_on(&trk[HAAVE_BELL], note, vel);
+    fm6_alt_next = 0;
     haave_bn[k] = (uint8_t)note;
     haave_bt[k] = (int32_t)HAAVE_STRIKE;
 }
@@ -367,6 +371,15 @@ static void haave_keys_held(void);
 enum { DI_SYNTH, DI_BELLS, DI_BASS, DI_N };
 static volatile uint8_t haave_inst = DI_BELLS;
 static volatile uint8_t haave_resync_part;   /* the parts haave_ui.c gave another sound: their notes were cut */
+/* the instrument's handover: a part about to take another sound (SYNTH on the voice's, BASS on the bass's, and back)
+ * fades out first, its notes let go and its level down over HAAVE_HO_MS (fx.c haave_pgain); silent, its last tails are
+ * stopped and haave_ui.c loads the new sound, and its notes start again (the keys held meanwhile too): nothing is cut
+ * off, and a part never plays two sounds at once */
+#define HAAVE_HO_MS 1400u
+static volatile uint8_t haave_ho;        /* the parts handing over (bit per part; haave_ui.c sets them) */
+static volatile uint8_t haave_ho_quiet;  /* .. of them, silent now: haave_ui.c loads them, then clears both bits */
+static int32_t haave_ho_e[NPART] = {1 << 30, 1 << 30, 1 << 30, 1 << 30};   /* each part's fade, Q30 (its level: the
+                                                                       * square) */
 
 /* the layers sounding: BREATHE rests all but the pad */
 static uint32_t haave_lay(void) { return haave_breathe ? haave_layers & (1u << DL_PAD) : haave_layers; }
@@ -400,13 +413,13 @@ static void haave_voice_held(void)
         haave_act[DL_PAD] = haave_act[DL_SHIMMER] = 255;
     haave_hold_set(&haave_pad, want, n);
     n = 0;
-    if (haave_on && (L >> DL_BASS) & 1u && haave_inst != DI_BASS)
+    if (haave_on && (L >> DL_BASS) & 1u && haave_inst != DI_BASS && !((haave_ho >> HAAVE_BASS) & 1u))
         want[n++] = (uint8_t)haave_above(haave_note(0, lo - 22), 28u);   /* (E1, 41 Hz: lower, a small speaker loses it) */
     if (n)
         haave_act[DL_BASS] = 255;
     haave_hold_set(&haave_bass, want, n);
     n = 0;
-    if (haave_on && (L >> DL_CHOIR) & 1u && haave_inst != DI_SYNTH) {
+    if (haave_on && (L >> DL_CHOIR) & 1u && haave_inst != DI_SYNTH && !((haave_ho >> HAAVE_CHOIR) & 1u)) {
         uint32_t v = haave_above(haave_note(st[haave_choir_tone % 3u], lo + haave_vox_reg), 40u);   /* (E2 ..) */
         while (v > 72u)                                  /* (.. C5: higher, the voice turns shrill) */
             v -= 12u;
@@ -532,7 +545,8 @@ static uint16_t haave_kplay;             /* the instrument's keys held, a bit ea
 static uint32_t haave_kage[DW_N], haave_kseq;   /* .. when each was pressed (the latest win when the voices are few) */
 
 /* the instrument's held notes to the chord now: SYNTH as many as the voices allow (all of them, one kept for the
- * bells, and its part's own: an FM6 sound has 6, the voice 4), BASS one, the latest pressed first; BELLS none (struck) */
+ * bells, and its part's own: an FM6 sound has 6, the voice 4), BASS one, the latest pressed first; BELLS none (struck);
+ * none while its part hands over (haave_ho: the keys held then start when it is done) */
 static void haave_keys_held(void)
 {
     uint8_t want[8];
@@ -549,6 +563,8 @@ static void haave_keys_held(void)
         room = poly;
     if (haave_inst == DI_BASS)
         room = 1;
+    if ((haave_ho >> part) & 1u)
+        room = 0;
     while (n < room && n < 8u) {
         for (k = 0, best = DW_N; k < DW_N; k++)
             if ((haave_kplay >> k) & 1u && !((chosen >> k) & 1u) && (best == DW_N || haave_kage[k] > haave_kage[best]))
@@ -996,6 +1012,38 @@ static void haave_player(uint32_t n)
     }
 }
 
+/* a block of the handovers (haave_ho): a part fades out over HAAVE_HO_MS, its level the square of the ramp (a gentle
+ * fall); silent, what still rings of it stops (unheard) and haave_ui.c is told; given its new sound, it comes back up
+ * (nothing sounds yet: its notes start with their own attack) */
+static void haave_ho_block(uint32_t n)
+{
+    static uint8_t ho;
+    uint32_t p, i;
+    if (haave_ho & ~ho)                                  /* (a part starts handing over: its notes let go) */
+        haave_voice_held();
+    ho = haave_ho;
+    for (p = 0; p < NPART; p++) {
+        int32_t e = haave_ho_e[p];
+        if ((ho >> p) & 1u) {
+            e -= (int32_t)(n * (0x40000000u / (HAAVE_HO_MS * (FS / 1000u))));
+            if (e <= 0) {
+                e = 0;
+                if (!((haave_ho_quiet >> p) & 1u))
+                    for (i = 0; i < NVOICE; i++)
+                        if (trk[p].v[i].active)
+                            voice_kill(&trk[p].v[i]);
+                haave_ho_quiet |= (uint8_t)(1u << p);
+            }
+        } else if (e < 1 << 30) {
+            e += (int32_t)(n * (0x40000000u / (60u * (FS / 1000u))));   /* (~60 ms) */
+            if (e > 1 << 30)
+                e = 1 << 30;
+        }
+        haave_ho_e[p] = e;
+        haave_pgain[p] = ((e >> 15) * (e >> 15)) >> 15;
+    }
+}
+
 /* each audio block, before the voices */
 static void haave_block(uint32_t n)
 {
@@ -1005,6 +1053,7 @@ static void haave_block(uint32_t n)
         return;
     }
     haave_bells_block(n);
+    haave_ho_block(n);
     haave_keys_block();
     {   /* the punch-in buttons: playing, they wait for the beat (haave_sixteenth); stopped, they act at once */
         uint32_t i, down = 0;

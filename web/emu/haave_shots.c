@@ -178,7 +178,7 @@ int main(int argc, char **argv)
     run(4000);
     open_scene("playkeys");
     tap(B_SAVE);
-    run(600);
+    run(1600);                                           /* (the voice's part handed over: SAVE breathes, then lit) */
     web_keys(1u << WHITE[9]);
     run(900);
     web_keys(1u << WHITE[9] | 1u << WHITE[12]);
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
     }
     run(600);
     tap(B_SEQ);
-    run(500);
+    run(1600);
     for (i = 0; i < 4u; i++) {
         web_keys(1u << WHITE[7u + (i * 3u) % 9u]);
         run(450);

@@ -46,6 +46,7 @@ typedef struct {
     int32_t ca, c1, cb, c2;              /* the noise darkened before it (a one-pole low-pass, Q15; 32768: none) and
                                           * after it, their states */
     uint8_t lpo;                         /* 1: the filter's low-pass out (a rumble, a surf: 12 dB an octave above) */
+    uint8_t dens;                        /* DUST: a speck in about every 1024 / dens samples */
     uint32_t vph;                        /* GULL: its vibrato's phase */
     int32_t note;                        /* the event's tone (the bells, BUBBLES' climb) */
 } haave_spr_t;
@@ -119,16 +120,20 @@ static int haave_spr_event(haave_spr_t *v, int first)
         v->amp = 4200;
         v->gap = SPR_MS(v->ev % 6u ? 13 : haave_spr_r(250, 380));
         break;
-    case HS_LEAVES:                                      /* rustles: grains of bright noise, drifting */
+    case HS_LEAVES:                                      /* leaves stirring: a breeze through them, many dry little
+                                                          * ticks rising and settling, drifting across */
         if (first)
-            v->ev = (uint8_t)haave_spr_r(8, 13);
-        v->k = K_NOISE;
-        v->p0 = v->p1 = (int32_t)haave_spr_r(2500, 5500);
-        v->q = 20000;
-        v->len = SPR_MS(haave_spr_r(30, 140));
-        v->atk = SPR_MS(6);
-        v->amp = (int32_t)haave_spr_r(9000, 18000);
-        v->gap = SPR_MS(haave_spr_r(10, 120));
+            v->ev = (uint8_t)haave_spr_r(1, 2);
+        v->k = K_DUST;
+        v->dens = 10;                                    /* (~430 a second: a rustle, not a crackle) */
+        v->p0 = (int32_t)haave_spr_r(2600, 3400);
+        v->p1 = v->p0 + (int32_t)haave_spr_r(300, 800);  /* (brightening a little as it stirs) */
+        v->q = 24000;
+        v->cb = 15000;                                   /* (each tick's edge rounded: dry, not sharp) */
+        v->len = SPR_MS(haave_spr_r(800, 1400));
+        v->atk = v->len * 2u / 5u;
+        v->amp = (int32_t)haave_spr_r(18000, 26000);
+        v->gap = SPR_MS(haave_spr_r(60, 260));
         v->pan_to = (int32_t)haave_spr_r(6000, 26000);
         break;
     case HS_DROPS:                                       /* drops: a quick sine leaping up */
@@ -170,6 +175,7 @@ static int haave_spr_event(haave_spr_t *v, int first)
     case HS_CRACKLE:                                     /* crackle: specks through a band-pass, swelling and fading */
         v->ev = 0;
         v->k = K_DUST;
+        v->dens = 1;
         v->p0 = v->p1 = 2200;
         v->q = 16000;
         v->cb = 14000;                                   /* (each speck's edge rounded: a soft tick, not a scratch) */
@@ -310,7 +316,7 @@ static void haave_spr_key(uint32_t k)
 /* fx.c: a block of the sprinkles into the dry mix (l, r) and the echo's and reverb's sends (sd, sv); each kind at its
  * level beside the music (Q8: noise through a narrow band, sparse specks and low rumbles need more than a sine) */
 #define SPR_GAIN 22700                   /* (about 4 dB under the instruments' level beside the pad) */
-static const uint16_t SPR_KIND_GAIN[HS_N] = {256, 256, 230, 720, 640, 256, 256, 320, 3100, 1020, 750, 3600, 510,
+static const uint16_t SPR_KIND_GAIN[HS_N] = {256, 256, 320, 720, 640, 256, 256, 320, 3100, 1020, 750, 3600, 510,
                                              256, 256, 256};
 static void haave_spr_mix(int32_t *l, int32_t *r, int32_t *sd, int32_t *sv, uint32_t n)
 {
@@ -357,7 +363,7 @@ static void haave_spr_mix(int32_t *l, int32_t *r, int32_t *sd, int32_t *sv, uint
                     v->rng ^= v->rng << 13;
                     v->rng ^= v->rng >> 17;
                     v->rng ^= v->rng << 5;
-                    in = v->k == K_DUST ? ((v->rng & 1023u) < 1u ? (int32_t)(v->rng >> 17) - 16384 : 0)
+                    in = v->k == K_DUST ? ((v->rng & 1023u) < v->dens ? (int32_t)(v->rng >> 17) - 16384 : 0)
                                         : (int32_t)(v->rng >> 17) - 16384;
                     if (v->ca) {                         /* (darker noise in) */
                         v->c1 += ((in - v->c1) * v->ca) >> 15;

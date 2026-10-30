@@ -812,6 +812,15 @@ static int32_t wet[CTL];                                 /* (the dry mix and the
 static int32_t send_c[CTL], send_d[CTL], send_r[CTL], wet[CTL], mix_l[CTL], mix_r[CTL];
 #endif
 
+#if FELUCCA_HAAVE
+/* HAAVE (haave_play.c haave_ho_block): each part's level for the instrument's handover (a part fading out before it
+ * takes another sound), Q15 */
+static int32_t haave_pgain[NPART] = {32768, 32768, 32768, 32768};
+#define PART_LVL(t) ((LEVEL_Q12[(t)->p[P_LEVEL] & 127] * haave_pgain[(t) - trk]) >> 15)
+#else
+#define PART_LVL(t) LEVEL_Q12[(t)->p[P_LEVEL] & 127]
+#endif
+
 /* SPREAD (#148): a POLY or UNISON part whose SPRD is above 0. Its voices start left and right of PAN in turn (voice.c
  * voice_start; UNISON's detuned voices alternate), at PAN -/+ SPRD / 2 (SPRD 127: hard left and right), with the pan
  * law PAN has (the far side down, the near one as it is). track_render gives every voice (b, as always) and the left
@@ -825,7 +834,7 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
 {
     int32_t *d = SPREAD_BUF(t);
     uint32_t i;
-    int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN], s = (t->p[P_SPRD] + 1) >> 1;
+    int32_t lvl = PART_LVL(t), pan = t->p[P_PAN], s = (t->p[P_SPRD] + 1) >> 1;
     int32_t pa = clamp(pan - s, -64, 63), pb = clamp(pan + s, -64, 63);
     int32_t gla = 4096 - (pa > 0 ? pa * 64 : 0), gra = 4096 + (pa < 0 ? pa * 64 : 0);
     int32_t glb = 4096 - (pb > 0 ? pb * 64 : 0), grb = 4096 + (pb < 0 ? pb * 64 : 0);
@@ -912,7 +921,7 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
     }
     if (!T_SPREAD(t)) {                                /* (the mix's values read after the calls: none is held over
                                                          * them, no spill in the loop: the ISR's cost as before 1.5) */
-        int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN];
+        int32_t lvl = PART_LVL(t), pan = t->p[P_PAN];
         int32_t gl = 4096 - (pan > 0 ? pan * 64 : 0), gr = 4096 + (pan < 0 ? pan * 64 : 0);
         int32_t c = t->p[P_CHOR] * 258, d = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak;
         int32_t xmax = c > d ? c : d;

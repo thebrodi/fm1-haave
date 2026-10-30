@@ -55,15 +55,16 @@ The FM-1 has 7 encoders (knobs), 14 buttons and 27 keys (see `firmware/src/panel
 |---|---|---|
 | 1 | PAD | The chord, soft and slow (FM pad) |
 | 2 | BASS | The chord's root, low and round (sub bass) |
-| 3 | ARP | The chord's tones rippling up and down (FM bell) |
-| 4 | SPARKLE | High, quiet bell notes |
+| 3 | ARP | The chord's tones rippling up and down (the world's struck tone: a marimba, wood, a kalimba, bells) |
+| 4 | SPARKLE | High, quiet notes of the same tone |
 | 5 | MELODY | Slow single notes floating in the middle |
 | 6 | VOX | One voice gliding between the chord's tones (a choir "aah", or a breathy whisper) |
 | 7 | SHIMMER | A high note above the pad, an octave up |
 
 PAD and MELODY are on at power-on. The FM-1 sounds 8 voices at once across 4 parts, so the layers
 share them: PAD and SHIMMER (part 1), ARP, SPARKLE and MELODY (part 2), BASS (part 3), VOX (part 4). The instrument
-borrows a part: SYNTH part 4 (the VOX layer rests meanwhile), BELLS part 2, BASS part 3 (the BASS layer rests); a note
+borrows a part: SYNTH part 4 (the VOX layer rests meanwhile), BELLS part 2 (the world's bells, a second sound on that
+part: below), BASS part 3 (the BASS layer rests); a note
 two holders hold sounds once and ends with its last (`haave_nref`). The sprinkles have four voices of their own
 (`haave_spr.c`), beside the 8. When all 8 are held, the oldest bell lets go first (it rings out on its release) rather than a held pad, bass, voice or key note
 being taken; and a held note the budget takes anyway (a crowd of strikes in one block, or the CPU's shedding on the
@@ -76,20 +77,22 @@ name a moment on the screen), and every note fits:
 
 | Button | Instrument | The nine keys |
 |---|---|---|
-| SAVE | SYNTH: its own sound on part 4, each world starting on its own (never its bells' kind: CRYSTAL, RAIN and OCEAN the glassy sine; CAVE's softer and slower to start); SAVE again: the next (WARM a soft saw lead, KEYS soft electric keys, GLASS a glassy sine, AIR a breathy flute). The VOX layer rests meanwhile | The chord's scale from about C4 up: the key's notes that fit the chord now (a whole tone at least from each of its tones), about five an octave, so nine keys are about two octaves. Held while the key is, as many as the voices allow (the latest pressed first) |
-| ARP | BELLS: the world's bells (part 2), struck and ringing out | The first: the GONG (the chord's root low, its octave softly above); then the chord's tones from about C4 up, eight of them |
+| SAVE | SYNTH: its own sound on part 4, each world starting on its own (never its bells' kind: CRYSTAL, RAIN and OCEAN the glassy sine; CAVE the hollow one); SAVE again: the next (WARM a soft saw lead, KEYS soft electric keys, GLASS a glassy sine, AIR a breathy flute, HOLLOW an ocarina-like tone with a sub octave, swelling in). The VOX layer rests meanwhile | The chord's scale from about C4 up: the key's notes that fit the chord now (a whole tone at least from each of its tones), about five an octave, so nine keys are about two octaves. Held while the key is, as many as the voices allow (the latest pressed first) |
+| ARP | BELLS: the world's bells (part 2), struck and ringing out. Where the layers strike something else (GLASS's vibes, NIGHT's tonewood, NEON's digital marimba, OCEAN's soft marimba, CAVE's log drum), the bells are a second FM patch on the same part (`eng_fm6.c` `fm6_alt`: a note struck by hand plays it to its end, the layers' notes the part's own): a glass bell, NEON's crystal, CAVE's deep bell; elsewhere the layers' own tone | The first: the GONG (the chord's root low, its octave softly above); then the chord's tones from about C4 up, eight of them |
 | SEQ | BASS: a soft, round bass on part 3, the same in every world (a triangle through a low filter, no resonance or drive); the BASS layer rests meanwhile | The chord's scale from E1 .. E2 up (whatever OCT), one note at a time, the latest held |
 
 Held notes follow the chord: a chord change moves them to the new one's. The keys light while held, and play when the
-music is stopped too. Changing the instrument changes the borrowed part's sound (Felucca's own gentle release, then
-the new sound), and the layer that rested comes back.
+music is stopped too. Choosing SYNTH or BASS (or leaving them, or SAVE again for SYNTH's next sound) hands the borrowed
+part over gently (`haave_ho`): what it plays lets go and the part fades out over about 1.4 s, its button breathing
+meanwhile; at its silence the new sound is loaded, the button lights, and keys held meanwhile start. Leaving, the layer
+that rested comes back with its own slow attack. Never two sounds of one part at once, and nothing cut off.
 
 ### Sprinkles (black keys 6–11)
 
 Each world has six little sounds of its own on the six black keys on the right, a press each (stopped too): its name a
 moment on the screen, the key lit while it sounds. Most are made by `haave_spr.c`'s four voices: a sine with a
 glide, or noise through a band-pass, in short events with an attack and a fall, the pitched ones on the chord's tones;
-CHIMES, CASCADE and GONG strike the world's bells. They go into the dry sound and the echo's and reverb's sends
+CHIMES, CASCADE and GONG strike the world's bells (the BELLS keys' sound). They go into the dry sound and the echo's and reverb's sends
 (before SPACE's dry level), so they sit in the world's room, about 5–14 dB below the pad (the bells' ones at its level).
 
 | World | Sprinkles, left to right |
@@ -192,23 +195,24 @@ VI iv v VII i (no diminished chords, so nothing sounds harsh).
 ### Worlds (PRESETS)
 
 A world is a whole mood: the key and its mode, the tempo, and the sound of each part. Haave's own FM
-patches (`tools/gen_haave_patches.py`: bowl, drone, dark pad, crystal, kalimba, soft keys) are loaded
+patches (`tools/gen_haave_patches.py`: bowl, drone, dark pad, crystal, kalimba, soft keys, soft marimba, log drum,
+vibes, tonewood, digital marimba, deep bell, hollow) are loaded
 into a part as its own patch; Felucca's factory sounds stay as they are.
 
-| World | Key | BPM | Pad | Bells (ARP, SPARKLE, MELODY) | VOX | Behaviour, chord path |
+| World | Key | BPM | Pad | Struck tone (ARP, SPARKLE, MELODY) | VOX | Behaviour, chord path |
 |---|---|---|---|---|---|---|
-| GLASS | D major | 72 | FM pad | glass bell | airy, high "aah" | DRIFT, HOME |
+| GLASS | D major | 72 | FM pad | soft vibes (BELLS: glass bell) | airy, high "aah" | DRIFT, HOME |
 | EMBER | A major | 66 | analog strings | electric piano | warm "ooh" | RIPPLE, FLOAT |
 | DUSK | F major | 80 | FM cloud pad | soft wooden mallets | low, soft hum | PULSE, RISE |
-| NIGHT | E minor | 60 | dark FM pad | glass bell | dark, low whisper | SWELL, LONGING |
-| NEON | G major | 84 | 80s PWM strings | 80s crystal bell | 80s machine voice | PULSE, HOME |
+| NIGHT | E minor | 60 | dark FM pad | tonewood under felt (BELLS: glass bell) | dark, low whisper | SWELL, LONGING |
+| NEON | G major | 84 | 80s PWM strings | 80s digital marimba (BELLS: crystal bell) | 80s machine voice | PULSE, HOME |
 | LOFI | E♭ major | 70 | soft analog pad | soft lo-fi keys | muffled tape hum | RIPPLE, LONGING |
 | BOWLS | C minor | 56 | warm drone | singing bowl (rings ~20 s) | overtone drone | DRIFT, DRONE |
 | GARDEN | A major | 64 | FM bloom pad | kalimba | bright, open "ah" | CHIME, FLOAT |
 | FOREST | E minor | 58 | FM air pad (breathy) | soft flute | breathy "hoo", like wind | DRIFT, WANDER |
-| OCEAN | D major | 54 | brown-noise waves (swelling over two bars) | clear glass bell, low | low "ooh" | DRIFT, FLOAT |
-| RAIN | E minor | 62 | a soft, steady rain hiss (noise, no drops: their clicks were a scratch) | kalimba | hum | RIPPLE, LONGING |
-| CAVE | A minor | 50 | dark FM pad, the whole world 5 semitones lower | clear glass bell | deep choir, "aah" to "ooh" | SWELL, DRONE |
+| OCEAN | D major | 54 | brown-noise waves (swelling over two bars) | soft marimba (BELLS: glass bell, low) | low "ooh" | DRIFT, FLOAT |
+| RAIN | E minor | 62 | a soft, steady rain hiss, quiet (noise, no drops: their clicks were a scratch) | kalimba | hum | RIPPLE, LONGING |
+| CAVE | A minor | 50 | dark FM pad, the whole world 5 semitones lower | hollow log drum (BELLS: deep bell) | deep choir, "aah" to "ooh" | SWELL, DRONE |
 | HANDPAN | D minor | 66 | warm drone | handpan | warm "ooh" | PULSE, FLOAT |
 | CRYSTAL | C major | 52 | FM air pad | crystal singing bowl | airy, high "aah" | DRIFT, HOME |
 
@@ -280,7 +284,9 @@ show the release.
 level band); TIDE; every punch-in in every world (no click, no level jump); the instruments (every note in the chord and
 rising, in range, every world, chord, colour and OCT; each instrument and SYNTH sound heard), all 84 sprinkles (heard,
 no click, done), a chord's key again colouring it, a crowd of notes (no held note taken), nothing held ending by itself;
-WARP, PUMP, SYNTH's held notes following a chord, BREATHE; then random playing for MINUTES (default 30): output finite
+WARP, PUMP, SYNTH's held notes following a chord, BREATHE, the instruments' handovers (over the voice, a held synth
+note and the bass: no fall of more than 3 dB in 10 ms, silent before the new sound, heard again after), the bells' part's
+two patches (the layers' notes the tone, a key's the bells); then random playing for MINUTES (default 30): output finite
 and below clipping, notes in range, never more than 8 voices, never silent while the pad plays, silent 30–40 s after a
 stop. The build command is at the top of the file. Known rough edge: with GLOW at its maximum, OCT+ and a high ECHO, a bright chord of bells can fizz for a few
 seconds (two of six random seeds catch it).
@@ -295,7 +301,9 @@ ringing from the chord before as a black key changes it, like a sustain pedal he
 every world is in tune within 5 cents (the analog pads' two oscillators 8 cents apart; the granular pads whose pitch
 wanders were replaced by Haave's FM CLOUD, AIR and BLOOM pads). Every pad, bell, bass and voice is levelled to within
 about 3 dB of its kind in the other worlds, and the bright FM sounds (glass bell, crystal, kalimba, soft wood, the
-pads) soften their overtones above middle C, so nothing fizzes when played high and bright.
+pads) soften their overtones above middle C, so nothing fizzes when played high and bright. The layers' wooden and
+mallet tones (vibes, tonewood, digital marimba, soft marimba, log drum) sit at the loudness of the bells they replaced
+(OCEAN's 1–2 dB under), with 15–25 dB less above 2.5 kHz: no harsh edge.
 
 Felucca's own suite (`tests/run_tests.sh`) passes with `FELUCCA_HAAVE=0`; with Haave its tests of Felucca's keyboard,
 MIDI-out-of-keys, SONG grid and splash keys fail, as Haave replaces those by design.

@@ -414,7 +414,7 @@ typedef struct {                 /* a sounding note (msfa's note): 244 bytes */
     int32_t fb[2];
     fm6_penv_t penv;
     uint8_t fixed;               /* bit k: operator k has a fixed frequency */
-    uint8_t live, down, rsv;
+    uint8_t live, down, alt;     /* alt: (eng_fm6.c, HAAVE) the part's second patch */
     int32_t dc;                  /* (eng_fm6.c) the output's DC blocker */
 } fm6_note_t;
 

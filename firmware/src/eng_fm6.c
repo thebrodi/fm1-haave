@@ -47,12 +47,25 @@ static volatile uint8_t fm6_pgen[NTRK];          /* +1 after each write of fm6_p
 static uint8_t fm6_slot[NTRK];                   /* the SLOT value last loaded (main loop); 0xFF = none */
 static uint8_t fm6_own[NTRK][FM6_PACKED] __attribute__((section(".pool")));   /* the own patch while SLOT shows a factory one (fm6_poll) */
 static uint8_t fm6_own_ok;                       /* bit tr: fm6_own[tr] holds it */
-static struct {                                  /* the patch through the macros: the audio ISR's copy */
+typedef struct {                                 /* the patch through the macros: the audio ISR's copy */
     uint8_t p[FP_SIZE + 1u];
     uint8_t gen, alg, fb, ok;
     int16_t e[7];                                /* P_E0..P_E6 it was made with */
     int32_t dt[6];                               /* DTUN: per operator, Q24 log2 */
-} fm6_eff[NTRK];
+} fm6_eff_t;
+static fm6_eff_t fm6_eff[NTRK];
+#if FELUCCA_HAAVE
+/* HAAVE: a second patch on one part (haave_ui.c: the world's bells beside its layers' tone, on the bells' part): a note
+ * started while fm6_alt_next is set plays it to its end (fm6_note_t.alt), at fm6_alt_gain (Q15) beside the part's own;
+ * the main loop writes it, then fm6_alt_gen, as fm6_patch */
+static uint8_t fm6_alt[FP_SIZE + 1u];
+static volatile uint8_t fm6_alt_gen, fm6_alt_tr = 0xFFu, fm6_alt_next;
+static volatile int32_t fm6_alt_gain = 32768;
+static fm6_eff_t fm6_alt_eff;
+#define FM6_EFF(n, tr) ((n)->alt ? &fm6_alt_eff : &fm6_eff[tr])
+#else
+#define FM6_EFF(n, tr) (&fm6_eff[tr])
+#endif
 static fm6_lfo_t fm6_lfo[NTRK];
 static int32_t fm6_lfo_v[NTRK], fm6_lfo_d[NTRK]; /* this block's LFO value and delay (Q24) */
 ENG_MEM_FITS("FM6", sizeof(fm6_note_t) * FM6_POLY);
@@ -274,39 +287,36 @@ static void fm6_poll(void)
 }
 
 /* -------------------------------------------------------------- macros --- */
-/* the patch through E0..E6 (audio ISR; cheap when nothing changed) */
-static void fm6_sync(const track_t *t)
+/* patch through E0..E6 into f (audio ISR; cheap when nothing changed): 1 = made again */
+static int fm6_sync_eff(fm6_eff_t *f, const uint8_t *patch, uint8_t gen, const int16_t *e)
 {
-    uint32_t tr = (uint32_t)(t - trk), k, j, car, n = 0;
-    const int16_t *e = &t->p[P_E0];
+    uint32_t k, j, car, n = 0;
     int32_t meg, step;
-    if (tr >= NTRK)
-        return;
-    if (fm6_eff[tr].ok && fm6_eff[tr].gen == fm6_pgen[tr]) {
-        for (k = 0; k < 7u && fm6_eff[tr].e[k] == e[k]; k++)
+    if (f->ok && f->gen == gen) {
+        for (k = 0; k < 7u && f->e[k] == e[k]; k++)
             ;
         if (k == 7u)
-            return;
+            return 0;
     }
-    fm6_eff[tr].gen = fm6_pgen[tr];
-    memcpy(fm6_eff[tr].p, fm6_patch[tr], FP_SIZE);
+    f->gen = gen;
+    memcpy(f->p, patch, FP_SIZE);
     for (k = 0; k < 7u; k++)
-        fm6_eff[tr].e[k] = e[k];
+        f->e[k] = e[k];
     {
-        uint8_t *p = fm6_eff[tr].p;
+        uint8_t *p = f->p;
         uint32_t alg = e[0] >= 1 && e[0] <= 32 ? (uint32_t)e[0] - 1u : p[FP_ALG] & 31u;
-        fm6_eff[tr].alg = (uint8_t)alg;
-        fm6_eff[tr].fb = (uint8_t)clamp(p[FP_FB] + e[1], 0, 7);
+        f->alg = (uint8_t)alg;
+        f->fb = (uint8_t)clamp(p[FP_FB] + e[1], 0, 7);
         car = fm6_carriers(alg);
         meg = clamp(e[4], -64, 63) * 40 / 64;               /* MEG: rate steps (+ slower) */
         step = clamp(e[6], 0, 127) * (12 * 13981) / 127;    /* DTUN: up to 12 cents a step (1 cent = 13981) */
         for (k = 0; k < 6u; k++) {
             uint8_t *op = p + (5u - k) * FP_OP;              /* OP1 first: carriers in their order */
             uint32_t ki = 5u - k;
-            fm6_eff[tr].dt[ki] = 0;
+            f->dt[ki] = 0;
             if ((car >> ki) & 1u) {                          /* carriers 0, +1, -1, +2, -2, +3 steps apart */
                 static const int8_t SPREAD[6] = {0, 1, -1, 2, -2, 3};
-                fm6_eff[tr].dt[ki] = SPREAD[n++] * step;
+                f->dt[ki] = SPREAD[n++] * step;
                 continue;
             }
             if (!op[FP_MODE])
@@ -315,9 +325,23 @@ static void fm6_sync(const track_t *t)
                 op[FP_R1 + j] = (uint8_t)clamp(op[FP_R1 + j] - meg, 0, 99);
             op[FP_KVS] = (uint8_t)clamp(op[FP_KVS] + e[5], 0, 7);
         }
-        fm6_lfo_reset(&fm6_lfo[tr], p);
     }
-    fm6_eff[tr].ok = 1;
+    f->ok = 1;
+    return 1;
+}
+
+/* the part's patch through E0..E6 (and HAAVE's second), its LFO from it */
+static void fm6_sync(const track_t *t)
+{
+    uint32_t tr = (uint32_t)(t - trk);
+    if (tr >= NTRK)
+        return;
+    if (fm6_sync_eff(&fm6_eff[tr], fm6_patch[tr], fm6_pgen[tr], &t->p[P_E0]))
+        fm6_lfo_reset(&fm6_lfo[tr], fm6_eff[tr].p);
+#if FELUCCA_HAAVE
+    if (tr == fm6_alt_tr)
+        fm6_sync_eff(&fm6_alt_eff, fm6_alt, fm6_alt_gen, &t->p[P_E0]);
+#endif
 }
 
 /* --------------------------------------------------------------- voice --- */
@@ -338,7 +362,10 @@ static void fm6_note_on(track_t *t, voice_t *v)
     if (!n)
         return;
     fm6_sync(t);
-    p = fm6_eff[tr].p;
+#if FELUCCA_HAAVE
+    n->alt = (uint8_t)(tr == fm6_alt_tr && fm6_alt_next);
+#endif
+    p = FM6_EFF(n, tr)->p;
     fm6_note_init(n, p, (int32_t)v->note + p[FP_TRNSP] - 24, v->mvel ? v->mvel : v->vel,
                   (!v->env && !v->env_out) || !n->live);    /* from silence: phases and gains from 0 */
     fm6_lfo_key(&fm6_lfo[tr]);
@@ -361,7 +388,7 @@ static int fm6_done(track_t *t, voice_t *v)
     uint32_t tr = (uint32_t)(t - trk);
     if (!n || !n->live)
         return 1;
-    if (!fm6_note_done(n, fm6_eff[tr].p, fm6_eff[tr].alg))
+    if (!fm6_note_done(n, FM6_EFF(n, tr)->p, FM6_EFF(n, tr)->alg))
         return 0;
     n->live = 0;
     return 1;
@@ -371,20 +398,26 @@ static void fm6_render(track_t *t, voice_t *v, int32_t *out, uint32_t len, const
 {
     fm6_note_t *n = fm6_note_of(t, v);
     uint32_t tr = (uint32_t)(t - trk), i;
+    const fm6_eff_t *f;
     const uint8_t *p;
     int32_t bus[FM6_N], lf, fb, lvl, k, a, da;
     if (!n || !n->live || len != FM6_N)
         return;
-    p = fm6_eff[tr].p;
+    f = FM6_EFF(n, tr);
+    p = f->p;
     if (!v->gate && n->down)
         fm6_note_key(n, p, 0);
     lf = fm6_note_logfreq(m->pitch16 + (p[FP_TRNSP] - 24) * 16, m->fine);
-    fb = clamp(fm6_eff[tr].fb + ((m->shape - (64 << 8)) >> 11), 0, 7);
+    fb = clamp(f->fb + ((m->shape - (64 << 8)) >> 11), 0, 7);
     lvl = clamp(t->p[P_E2], -64, 63) * 24 + clamp(m->cutoff >> 8, -150, 150) * 16;   /* microsteps */
-    if (!fm6_note_compute(n, p, bus, fm6_lfo_v[tr], fm6_lfo_d[tr], lf, fm6_eff[tr].alg, fb, fm6_eff[tr].dt, lvl << 16))
+    if (!fm6_note_compute(n, p, bus, fm6_lfo_v[tr], fm6_lfo_d[tr], lf, f->alg, fb, f->dt, lvl << 16))
         return;                                         /* every carrier below the threshold */
     /* the voice's amplitude ramp x VOICE_FS (one carrier at full: VOICE_FS / 2), six voices in unison ~ one */
     k = t->p[P_VOICE] == V_UNISON ? VOICE_FS * 2 / 5 : VOICE_FS;
+#if FELUCCA_HAAVE
+    if (n->alt)
+        k = mulq15(k, fm6_alt_gain);
+#endif
     a = mulq15(m->amp0, k);
     da = (mulq15(m->amp1, k) - a) >> FM6_LG_N;
     for (i = 0; i < FM6_N; i++) {

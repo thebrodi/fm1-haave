@@ -140,6 +140,72 @@ PATCHES = [
         op(ol=0),
         op(ol=0)],
         fb=0, lfs=22, lfd=0, lpmd=6, lfw=0, lpms=3)),
+    # A soft marimba under rubber mallets: the bar's fundamental and its tuned partial two octaves up (4x), the mallet
+    # barely heard, the resonator's warm ring long after.
+    ("SOFT MARIMBA", voice("SOFT MRMBA", 5, [
+        op(r=(99, 40, 26, 40), l=(99, 50, 0, 0), ol=98, kvs=2, rs=2),
+        op(r=(99, 80, 60, 60), l=(99, 0, 0, 0), ol=54, fc=4, kvs=5, rs=3, bp=48, rd=60, rc=0),   # the mallet
+        op(r=(99, 70, 50, 60), l=(99, 0, 0, 0), ol=62, fc=4, kvs=3, rs=3, bp=48, rd=60, rc=0),   # the 4x partial
+        op(r=(99, 85, 60, 60), l=(99, 0, 0, 0), ol=28, kvs=2),
+        op(r=(99, 34, 24, 36), l=(99, 60, 0, 0), ol=80, det=9, rs=2),                             # the resonator
+        op(r=(99, 85, 60, 60), l=(99, 0, 0, 0), ol=40, kvs=3)],
+        fb=0, lpms=0)),
+    # A hollow log drum: a deep round tone, a soft wooden knock (a partial at 6.27x, gone at once), a faint third
+    # harmonic for the hollow, ringing on into the dark.
+    ("LOG DRUM", voice("LOG DRUM", 5, [
+        op(r=(99, 50, 32, 40), l=(99, 55, 0, 0), ol=98, kvs=2, rs=1),
+        op(r=(99, 88, 70, 70), l=(99, 0, 0, 0), ol=60, kvs=4, bp=48, rd=60, rc=0),                # the knock's body
+        op(r=(99, 62, 45, 50), l=(99, 20, 0, 0), ol=58, fc=3, rs=2, bp=48, rd=60, rc=0),         # the hollow
+        op(ol=0),
+        op(r=(99, 45, 30, 40), l=(99, 50, 0, 0), ol=76, det=10, rs=1),
+        op(r=(99, 92, 80, 80), l=(99, 0, 0, 0), ol=54, fc=6, ff=27, kvs=3, bp=48, rd=70, rc=0)],  # the knock
+        fb=0, lpms=0)),
+    # A soft vibraphone: pure bars (the fundamental, the 4x partial shorter), soft mallets, the motor off.
+    ("VIBES", voice("SOFT VIBES", 5, [
+        op(r=(99, 30, 22, 30), l=(99, 70, 0, 0), ol=97, kvs=2, rs=2),
+        op(r=(99, 70, 40, 50), l=(99, 0, 0, 0), ol=50, fc=4, kvs=4, rs=2, bp=48, rd=55, rc=0),   # the mallet
+        op(r=(99, 55, 35, 45), l=(99, 20, 0, 0), ol=64, fc=4, kvs=3, rs=3, bp=48, rd=60, rc=0),
+        op(ol=0),
+        op(r=(99, 30, 22, 30), l=(99, 70, 0, 0), ol=78, det=9, rs=2),
+        op(r=(99, 85, 60, 60), l=(99, 0, 0, 0), ol=36, kvs=3)],
+        fb=0, lpms=0)),
+    # Tonewood: warm wooden bars under felt, a hollow body (the odd harmonics a 2x modulator brings), little attack.
+    ("TONEWOOD", voice("TONEWOOD", 5, [
+        op(r=(99, 38, 28, 38), l=(99, 55, 0, 0), ol=98, kvs=2, rs=2),
+        op(r=(99, 72, 50, 55), l=(99, 10, 0, 0), ol=56, fc=2, kvs=4, rs=2, bp=48, rd=60, rc=0),   # the hollow
+        op(r=(99, 34, 26, 36), l=(99, 60, 0, 0), ol=80, det=9, rs=2),
+        op(r=(99, 82, 55, 60), l=(99, 0, 0, 0), ol=40, kvs=3),                                    # the felt
+        op(ol=0),
+        op(ol=0)],
+        fb=0, lpms=0)),
+    # An 80s digital marimba: a bright, quick mallet (4x, a glint at 7x), the bar's octave, a little chorus.
+    ("DX MARIMBA", voice("DX MARIMBA", 5, [
+        op(r=(99, 46, 34, 44), l=(99, 50, 0, 0), ol=98, kvs=2, rs=2),
+        op(r=(99, 78, 55, 60), l=(99, 0, 0, 0), ol=68, fc=4, kvs=5, rs=3, bp=48, rd=60, rc=0),   # the mallet
+        op(r=(99, 60, 45, 55), l=(99, 10, 0, 0), ol=64, fc=2, rs=3, bp=48, rd=60, rc=0),         # the octave
+        op(r=(99, 90, 70, 70), l=(99, 0, 0, 0), ol=46, fc=7, kvs=3, bp=48, rd=70, rc=0),         # the glint
+        op(r=(99, 42, 32, 42), l=(99, 55, 0, 0), ol=80, det=10, rs=2),
+        op(ol=0)],
+        fb=0, lpms=0)),
+    # A deep bell: CLEAR BELL darker (its modulators lower) and longer, for a cave.
+    ("DEEP BELL", voice("DEEP BELL", 5, [
+        op(r=(99, 34, 22, 32), l=(99, 80, 0, 0), ol=96, kvs=1),
+        op(r=(99, 35, 25, 35), l=(99, 70, 0, 0), ol=68, fc=3, ff=50, kvs=3, bp=48, rd=60, rc=0),
+        op(r=(99, 40, 28, 36), l=(99, 70, 0, 0), ol=84, fc=2, ff=38, det=9, kvs=1),
+        op(r=(99, 50, 30, 40), l=(99, 60, 0, 0), ol=58, fc=5, kvs=3, bp=48, rd=65, rc=0),
+        op(r=(99, 56, 38, 42), l=(99, 50, 0, 0), ol=72, fc=5, ff=40, det=5),
+        op(r=(99, 60, 40, 45), l=(99, 50, 0, 0), ol=50, bp=48, rd=55, rc=0)],
+        fb=0, lpms=0)),
+    # A hollow synth: soft sines with only odd harmonics (a 2x modulator, kept low: an ocarina's hollow), a sub octave
+    # under them, swelling in, a slow vibrato coming late.
+    ("HOLLOW", voice("HOLLOW", 5, [
+        op(r=(52, 40, 30, 42), l=(99, 92, 88, 0), ol=96),
+        op(r=(50, 40, 30, 42), l=(86, 80, 76, 0), ol=54, fc=2, kvs=2, bp=48, rd=50, rc=0),
+        op(r=(52, 40, 30, 42), l=(99, 92, 88, 0), ol=84, det=9),
+        op(r=(50, 40, 30, 42), l=(82, 78, 74, 0), ol=46, fc=2, kvs=2, bp=48, rd=50, rc=0),
+        op(r=(48, 40, 30, 42), l=(99, 92, 88, 0), ol=64, fc=0, det=6),
+        op(ol=0)],
+        fb=0, lfs=30, lfd=50, lpmd=5, lfw=4, lpms=2)),
 ]
 
 

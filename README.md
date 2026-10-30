@@ -33,7 +33,7 @@ If you want everything the FM-1 can do, use [Felucca](https://github.com/hugelto
 | **KNOB 4 — Motion** | Still → moving: a slow phaser swirl, the sound drifting left and right, more notes |
 | **White keys 1–7** | Layers on / off (lit = playing): PAD, BASS, ARP, SPARKLE, MELODY, VOX, SHIMMER |
 | **White keys 8–16** | Play along on the instrument chosen with SAVE / ARP / SEQ: notes of the chord sounding now and the ones that fit between them, going up. Never a wrong note |
-| **SAVE / ARP / SEQ** | The instrument: SYNTH (press SAVE again for its next sound: WARM, KEYS, GLASS, AIR), BELLS (the first key a GONG), BASS (soft and round, the same in every world, one note at a time) |
+| **SAVE / ARP / SEQ** | The instrument: SYNTH (press SAVE again for its next sound: WARM, KEYS, GLASS, AIR, HOLLOW), BELLS (the world's bells, the first key a GONG), BASS (soft and round, the same in every world, one note at a time). SYNTH and BASS borrow a layer's sound: that layer fades out over a second or so, then the button stops breathing and the keys play |
 | **Black keys 1–5** | Chords to move to (vi ii IV V I): press to go there, press again for the same chord with a soft colour |
 | **Black keys 6–11** | Sprinkles: six little sounds of each world (birds, leaves, drops, chimes, a gong, a laser, a wave…) |
 | **PRESETS** | The world: GLASS, EMBER, DUSK, NIGHT, NEON, LOFI, BOWLS, GARDEN, FOREST, OCEAN, RAIN, CAVE, HANDPAN, CRYSTAL |
@@ -44,9 +44,10 @@ If you want everything the FM-1 can do, use [Felucca](https://github.com/hugelto
 | **HOME** | WARP while held: the music glides to half speed, and back when let go |
 | **REC** | Nothing yet |
 
-The worlds range from glassy bells and warm electric piano to a dark minor pad, 80s strings, lo-fi keys, a singing
-bowl over a drone, a kalimba, a soft flute, ocean waves and rain (brown noise), a deep cave, a handpan and crystal
-singing bowls. The full design and its rules are in [HAAVE.md](HAAVE.md).
+The worlds range from soft vibes and warm electric piano to a dark minor pad with tonewood, 80s strings with a
+digital marimba, lo-fi keys, a singing bowl over a drone, a kalimba, a soft flute, ocean waves with a soft marimba,
+rain (brown noise), a deep cave with a hollow log drum, a handpan and crystal singing bowls. The full design and its
+rules are in [HAAVE.md](HAAVE.md).
 
 ## Try it in your browser
 

@@ -359,7 +359,7 @@ static void playing(void)
         haave_voice_held();
         for (in = 0; in < 3u + DY_N - 1u; in++) {        /* SYNTH (each of its sounds), BELLS, BASS */
             button(INST_BTN[in < DY_N ? 0u : in - DY_N + 1u]);
-            run(400);
+            run(1800);                                   /* (its handover: the part fades, then the new sound) */
             reset();
             for (i = 0; i < 9u; i++) {
                 web_keys(1u << PLAYK[i]);
@@ -389,6 +389,8 @@ static void playing(void)
         }
         {   /* a chord's key: there; again: coloured; again: plain */
             int32_t dg = HAAVE_BLACK[haave_minor & 1u][1];
+            press(1u << BLACK[0]);                       /* (from another chord: a world's path may start on it) */
+            press(0);
             press(1u << BLACK[1]);
             press(0);
             cbad += haave_cur != dg || haave_bright;
@@ -401,8 +403,8 @@ static void playing(void)
         }
     }
     button(INST_BTN[1]);
-    printf("  14 worlds x 6 instrument sounds and %u sprinkles: %u not heard, %u too loud or clicking; colour %s\n", spr,
-           quiet, loud, cbad ? "WRONG" : "right");
+    printf("  14 worlds x %u instrument sounds and %u sprinkles: %u not heard, %u too loud or clicking; colour %s\n",
+           2u + DY_N, spr, quiet, loud, cbad ? "WRONG" : "right");
     CHECK(!quiet && !loud, "the instruments and sprinkles: %u not heard, %u too loud or clicking", quiet, loud);
     CHECK(!cbad, "a chord's key again: not coloured, or not plain again (%u)", cbad);
     for (w = 0; w < HAAVE_NWORLDS; w++) {                 /* a crowd: every layer, the busiest behaviours, the gong and
@@ -441,9 +443,85 @@ static void playing(void)
     run(3000);
 }
 
+/* part p's loudest sample over ms (its dry mix, fx.c), dB */
+static double part_peak(uint32_t p, uint32_t ms)
+{
+    trk[p].peak = 0;
+    run(ms);
+    return trk[p].peak ? db(trk[p].peak / 32768.0) : -120.0;
+}
+
+/* an instrument chosen over part p while it sounds (button btn; keys `key` pressed with it and held through): the part
+ * fades out, no fall of more than 3 dB in 10 ms while it is within 30 dB of where it was (no cut: a struck note's own
+ * decay is slower); it is 50 dB down or more when its new sound comes; then the part sounds again (a key held through,
+ * or the layer back) by 3 s */
+static void handover(uint32_t p, uint32_t btn, uint32_t key, const char *what)
+{
+    double ref = -300, prev = -300, l, at_load = 0, after = -300;
+    uint32_t i, cuts = 0, loaded = 0;
+    uint8_t before = p == HAAVE_CHOIR ? haave_p4 : haave_p3;
+    for (i = 0; i < 40u; i++) {
+        prev = part_peak(p, 10);
+        ref = prev > ref ? prev : ref;
+    }
+    web_keys(fm1_in.notes | key);
+    web_buttons(1u << btn);
+    for (i = 0; i < 300u; i++) {
+        if (i == 2u)
+            web_buttons(0);
+        l = part_peak(p, 10);
+        if (!loaded && (p == HAAVE_CHOIR ? haave_p4 : haave_p3) != before) {
+            loaded = i;
+            at_load = prev;
+        }
+        if (!loaded && prev > ref - 30.0 && l < prev - 3.0) {
+            cuts++;
+            if (getenv("HO_DEBUG"))
+                printf("    %u: %.1f -> %.1f (ref %.1f)\n", i, prev, l, ref);
+        }
+        if (loaded && l > after)
+            after = l;
+        prev = l;
+    }
+    printf("  %-24s %s, %.0f dB down when the new sound came (%.2f s), %.0f dB back up after\n", what,
+           cuts ? "CUT" : "faded", ref - at_load, loaded / 100.0, after - at_load);
+    CHECK(!cuts, "%s: the part cut off (%u falls over 3 dB in 10 ms)", what, cuts);
+    CHECK(loaded && (ref < -100.0 || ref - at_load > 50.0), "%s: only %.0f dB down when the new sound came", what,
+          ref - at_load);
+    CHECK(after - at_load > 30.0, "%s: not heard after (%.0f dB)", what, after - at_load);
+}
+
+/* the bells' part with a second patch (GLASS: the layers' vibes, the keys' bells): the layers' notes play the tone,
+ * a key's the bells */
+static void two_patches(void)
+{
+    uint32_t i, alt_layer = 0, alt_key = 0, live;
+    fm6_note_t *nn = (fm6_note_t *)ENG_MEM(HAAVE_BELL);
+    haave_load(0);
+    haave_layers = 1u << DL_PAD | 1u << DL_MELODY | 1u << DL_ARP;
+    haave_voice_held();
+    run(6000);
+    for (i = 0; i < FM6_POLY; i++)
+        alt_layer += trk[HAAVE_BELL].v[i].active && nn[i].live && nn[i].alt;
+    haave_layers = 1u << DL_PAD;
+    haave_voice_held();
+    run(3000);
+    press(1u << PLAYK[4]);
+    press(0);
+    run(200);
+    for (i = 0, live = 0; i < FM6_POLY; i++)
+        if (trk[HAAVE_BELL].v[i].active && trk[HAAVE_BELL].v[i].stage < 4u && nn[i].live) {
+            live++;
+            alt_key += nn[i].alt;
+        }
+    printf("  two patches: the layers' notes on the bells %u, a key's on the bells %u of %u\n", alt_layer, alt_key, live);
+    CHECK(!alt_layer && alt_key, "two patches: the layers struck the bells %u times, a key %u", alt_layer, alt_key);
+}
+
 /* 6: WARP (HOME held) halves the speed and comes back; PUMP dips on every beat (6 dB or more between the dip and the
  * swell) and leaves no click; SYNTH's keys held follow a chord change and leave nothing held when let go; BREATHE rests
- * the layers but the pad while held and gives them back */
+ * the layers but the pad while held and gives them back; the instruments' handovers fade, nothing cut off; the bells'
+ * part's two patches */
 static void hands(void)
 {
     uint32_t i, k, bad = 0;
@@ -493,7 +571,7 @@ static void hands(void)
     {   /* SYNTH: three keys held across a chord change, then let go */
         uint32_t held = 1u << PLAYK[0] | 1u << PLAYK[3] | 1u << PLAYK[6], n0;
         button(B_SAVE);
-        run(500);
+        run(1800);
         press(held);
         run(800);
         n0 = haave_kpad.n;
@@ -512,7 +590,25 @@ static void hands(void)
         CHECK(n0 == 3u, "SYNTH: %u notes held, not 3", n0);
         CHECK(haave_kpad.n == 0u && !bad, "SYNTH: %u left held, %u wrong", haave_kpad.n, bad);
         button(B_ARP);
+        run(1800);
+    }
+    {   /* the handovers: over the voice, a held synth note, the bass, and back */
+        haave_layers = 1u << DL_PAD | 1u << DL_CHOIR | 1u << DL_BASS;
+        haave_voice_held();
+        run(3000);
+        handover(HAAVE_CHOIR, B_SAVE, 1u << PLAYK[2], "SAVE over the voice");
+        handover(HAAVE_CHOIR, B_SAVE, 0, "SAVE again, a key held");
+        web_keys(0);
         run(500);
+        web_keys(1u << PLAYK[4]);
+        run(1500);
+        handover(HAAVE_CHOIR, B_ARP, 0, "ARP over a synth note");
+        web_keys(0);
+        handover(HAAVE_BASS, B_SEQ, 1u << PLAYK[1], "SEQ over the bass");
+        web_keys(0);
+        run(1000);
+        handover(HAAVE_BASS, B_ARP, 0, "ARP: the bass back");
+        run(1000);
     }
     {   /* BREATHE held 3 bars: the layers but the pad rest; let go: back */
         uint32_t resting, back;
@@ -530,6 +626,7 @@ static void hands(void)
     }
     button(B_PLAY);
     run(3000);
+    two_patches();
     haave_tide = DT_CALM;
 }
 
