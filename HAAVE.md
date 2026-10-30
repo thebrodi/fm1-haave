@@ -54,7 +54,7 @@ The FM-1 has 7 encoders (knobs), 14 buttons and 27 keys (see `firmware/src/panel
 | Key | Layer | Sound |
 |---|---|---|
 | 1 | PAD | The chord, soft and slow (FM pad) |
-| 2 | BASS | The chord's root, low and round (sub bass) |
+| 2 | BASS | The chord's root, low and round (a soft saw bass) |
 | 3 | ARP | The chord's tones rippling up and down (the world's struck tone: a marimba, wood, a kalimba, bells) |
 | 4 | SPARKLE | High, quiet notes of the same tone |
 | 5 | MELODY | Slow single notes floating in the middle |
@@ -79,13 +79,14 @@ name a moment on the screen), and every note fits:
 |---|---|---|
 | SAVE | SYNTH: its own sound on part 4, each world starting on its own (never its bells' kind: CRYSTAL, RAIN and OCEAN the glassy sine; CAVE the hollow one); SAVE again: the next (WARM a soft saw lead, KEYS soft electric keys, GLASS a glassy sine, AIR a breathy flute, HOLLOW an ocarina-like tone with a sub octave, swelling in). The VOX layer rests meanwhile | The chord's scale from about C4 up: the key's notes that fit the chord now (a whole tone at least from each of its tones), about five an octave, so nine keys are about two octaves. Held while the key is, as many as the voices allow (the latest pressed first) |
 | ARP | BELLS: the world's bells (part 2), struck and ringing out. Where the layers strike something else (GLASS's vibes, NIGHT's tonewood, NEON's digital marimba, OCEAN's soft marimba, CAVE's log drum), the bells are a second FM patch on the same part (`eng_fm6.c` `fm6_alt`: a note struck by hand plays it to its end, the layers' notes the part's own): a glass bell, NEON's crystal, CAVE's deep bell; elsewhere the layers' own tone | The first: the GONG (the chord's root low, its octave softly above); then the chord's tones from about C4 up, eight of them |
-| SEQ | BASS: a soft, round bass on part 3, the same in every world (a triangle through a low filter, no resonance or drive); the BASS layer rests meanwhile | The chord's scale from E1 .. E2 up (whatever OCT), one note at a time, the latest held |
+| SEQ | BASS: a soft, round bass on part 3, the same in every world (Haave's bass, below, starting gently); the BASS layer rests meanwhile | The chord's scale from E1 .. E2 up (whatever OCT), one note at a time, the latest held |
 
 Held notes follow the chord: a chord change moves them to the new one's. The keys light while held, and play when the
 music is stopped too. Choosing SYNTH or BASS (or leaving them, or SAVE again for SYNTH's next sound) hands the borrowed
-part over gently (`haave_ho`): what it plays lets go and the part fades out over about 1.4 s, its button breathing
-meanwhile; at its silence the new sound is loaded, the button lights, and keys held meanwhile start. Leaving, the layer
-that rested comes back with its own slow attack. Never two sounds of one part at once, and nothing cut off.
+part over gently (`haave_ho`): what it plays plays on, as it is, while the part's level fades out over about 1.4 s
+(`fx.c` `haave_pgain`; a note let go would end on its own release, a quick one for KEYS), its button breathing
+meanwhile; at its silence it stops, the new sound is loaded, the button lights, and keys held meanwhile start. Leaving,
+the layer that rested comes back with its own slow attack. Never two sounds of one part at once, and nothing cut off.
 
 ### Sprinkles (black keys 6–11)
 
@@ -166,7 +167,7 @@ sound's own envelopes shape it.) Each world starts in its own; ALGORITHM turns f
 |---|---|---|---|
 | DRIFT | half time | a slow sway over two bars, softer | single notes far apart, now and then an octave up |
 | RIPPLE | normal | a gentle half-bar movement | a flowing line, a step of the scale each eighth |
-| SWELL | half time | breathing in and out every bar | very rare notes |
+| SWELL | half time | breathing in and out every bar (not too deep, not too dark) | very rare notes |
 | CHIME | normal | still, quicker and brighter | quick figures of three high notes, then a rest |
 | PULSE | normal | a soft pulse on every beat | a four-note motif on the beats, new with each chord; the bass on the quarters |
 
@@ -217,9 +218,13 @@ into a part as its own patch; Felucca's factory sounds stay as they are.
 | CRYSTAL | C major | 52 | FM air pad | crystal singing bowl | airy, high "aah" | DRIFT, HOME |
 
 Each world also has its own room: reverb type and damping, delay time and colour. NEON has a square
-bass; the others a sub bass. The VOX is the voice engine with the world's own vowel, its glide to a
+bass; the others Haave's bass (BASS's keys too): a saw through a low-pass at about 450 Hz, no resonance, drive or
+filter envelope. A sine or a triangle at 41–110 Hz is lost on the FM-1's small speaker (one plays little below ~300
+Hz): this one's overtones carry it there, about 18 dB more than the old sine sub, while on headphones it is as loud and
+30 dB down above 1 kHz. The VOX is the voice engine with the world's own vowel, its glide to a
 second vowel, formant shift, buzz, breath and resonance. Levels are measured so the pad, the bells and the voice sit
-within a few dB of each other in every world.
+within a few dB of each other in every world, on headphones and through a small speaker (a 300 Hz high-pass as its
+model): `tests/haave_audit` below.
 
 ## Screen
 
@@ -285,7 +290,7 @@ level band); TIDE; every punch-in in every world (no click, no level jump); the 
 rising, in range, every world, chord, colour and OCT; each instrument and SYNTH sound heard), all 84 sprinkles (heard,
 no click, done), a chord's key again colouring it, a crowd of notes (no held note taken), nothing held ending by itself;
 WARP, PUMP, SYNTH's held notes following a chord, BREATHE, the instruments' handovers (over the voice, a held synth
-note and the bass: no fall of more than 3 dB in 10 ms, silent before the new sound, heard again after), the bells' part's
+note and the bass: no fall of more than 6 dB in 25 ms, silent before the new sound, heard again after), the bells' part's
 two patches (the layers' notes the tone, a key's the bells); then random playing for MINUTES (default 30): output finite
 and below clipping, notes in range, never more than 8 voices, never silent while the pad plays, silent 30–40 s after a
 stop. The build command is at the top of the file. Known rough edge: with GLOW at its maximum, OCT+ and a high ECHO, a bright chord of bells can fizz for a few
@@ -304,6 +309,13 @@ about 3 dB of its kind in the other worlds, and the bright FM sounds (glass bell
 pads) soften their overtones above middle C, so nothing fizzes when played high and bright. The layers' wooden and
 mallet tones (vibes, tonewood, digital marimba, soft marimba, log drum) sit at the loudness of the bells they replaced
 (OCEAN's 1–2 dB under), with 15–25 dB less above 2.5 kHz: no harsh edge.
+
+`tests/haave_audit.c` and `tests/haave_audit.py` check that everything can be heard: every world, each sound alone (the
+layers, SYNTH, BELLS, the GONG, BASS, the six sprinkles), its level beside the pad on headphones and through a small
+speaker (a 300 Hz high-pass, the FM-1's own roughly); a held sound judged past its attack. Marked where one falls more
+than 12 dB under the pad through the speaker. It found the sine and triangle basses 9–40 dB under (now 0–14), the
+owl hidden under the pad and the voice (now above them), NIGHT's and CAVE's pads and CAVE's SYNTH faint, CRYSTAL's gong
+a pure low sine (now a metal bowl).
 
 Felucca's own suite (`tests/run_tests.sh`) passes with `FELUCCA_HAAVE=0`; with Haave its tests of Felucca's keyboard,
 MIDI-out-of-keys, SONG grid and splash keys fail, as Haave replaces those by design.

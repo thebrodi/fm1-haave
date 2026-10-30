@@ -68,7 +68,8 @@ static void run(double ms)
                 for (h = 0; h < 3u; h++)
                     for (j = 0; j < H[h]->n; j++) {
                         const track_t *tt = &trk[H[h]->part];
-                        gone += !(tt->xf_on || tt->eng_req != tt->engine) && !haave_gated(H[h]->part, H[h]->note[j]);
+                        gone += !(tt->xf_on || tt->eng_req != tt->engine || ((haave_ho >> H[h]->part) & 1u)) &&
+                                !haave_gated(H[h]->part, H[h]->note[j]);   /* (handing over: stopped at its silence) */
                     }
                 lost += gone != 0;
                 lost_run = gone ? lost_run + 1u : 0u;
@@ -452,29 +453,30 @@ static double part_peak(uint32_t p, uint32_t ms)
 }
 
 /* an instrument chosen over part p while it sounds (button btn; keys `key` pressed with it and held through): the part
- * fades out, no fall of more than 3 dB in 10 ms while it is within 30 dB of where it was (no cut: a struck note's own
- * decay is slower); it is 50 dB down or more when its new sound comes; then the part sounds again (a key held through,
- * or the layer back) by 3 s */
+ * fades out, no fall of more than 6 dB in 25 ms while it is within 30 dB of where it was (a cut falls tens of dB; the
+ * fade with a struck note's own decay ~3; 25 ms windows: a bass's waveform peaks once in a period, 24 ms at E1); it is
+ * 40 dB down or more when its new sound comes; then the part sounds again (a key held through, or the layer back) by
+ * 3 s */
 static void handover(uint32_t p, uint32_t btn, uint32_t key, const char *what)
 {
     double ref = -300, prev = -300, l, at_load = 0, after = -300;
     uint32_t i, cuts = 0, loaded = 0;
     uint8_t before = p == HAAVE_CHOIR ? haave_p4 : haave_p3;
-    for (i = 0; i < 40u; i++) {
-        prev = part_peak(p, 10);
+    for (i = 0; i < 16u; i++) {
+        prev = part_peak(p, 25);
         ref = prev > ref ? prev : ref;
     }
     web_keys(fm1_in.notes | key);
     web_buttons(1u << btn);
-    for (i = 0; i < 300u; i++) {
-        if (i == 2u)
+    for (i = 0; i < 130u; i++) {
+        if (i == 1u)
             web_buttons(0);
-        l = part_peak(p, 10);
+        l = part_peak(p, 25);
         if (!loaded && (p == HAAVE_CHOIR ? haave_p4 : haave_p3) != before) {
             loaded = i;
             at_load = prev;
         }
-        if (!loaded && prev > ref - 30.0 && l < prev - 3.0) {
+        if (!loaded && prev > ref - 30.0 && l < prev - 6.0) {
             cuts++;
             if (getenv("HO_DEBUG"))
                 printf("    %u: %.1f -> %.1f (ref %.1f)\n", i, prev, l, ref);
@@ -484,9 +486,9 @@ static void handover(uint32_t p, uint32_t btn, uint32_t key, const char *what)
         prev = l;
     }
     printf("  %-24s %s, %.0f dB down when the new sound came (%.2f s), %.0f dB back up after\n", what,
-           cuts ? "CUT" : "faded", ref - at_load, loaded / 100.0, after - at_load);
-    CHECK(!cuts, "%s: the part cut off (%u falls over 3 dB in 10 ms)", what, cuts);
-    CHECK(loaded && (ref < -100.0 || ref - at_load > 50.0), "%s: only %.0f dB down when the new sound came", what,
+           cuts ? "CUT" : "faded", ref - at_load, loaded * 0.0261, after - at_load);
+    CHECK(!cuts, "%s: the part cut off (%u falls over 6 dB in 25 ms)", what, cuts);
+    CHECK(loaded && (ref < -100.0 || ref - at_load > 40.0), "%s: only %.0f dB down when the new sound came", what,
           ref - at_load);
     CHECK(after - at_load > 30.0, "%s: not heard after (%.0f dB)", what, after - at_load);
 }

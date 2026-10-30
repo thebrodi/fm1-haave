@@ -47,6 +47,9 @@ typedef struct {
                                           * after it, their states */
     uint8_t lpo;                         /* 1: the filter's low-pass out (a rumble, a surf: 12 dB an octave above) */
     uint8_t dens;                        /* DUST: a speck in about every 1024 / dens samples */
+    uint8_t flut;                        /* 1: the noise flutters (LEAVES: its level jumping softly every few ms) */
+    int32_t fl, flt;                     /* .. its level now and the one it moves to (Q15) */
+    uint32_t flw;                        /* .. samples to the next */
     uint32_t vph;                        /* GULL: its vibrato's phase */
     int32_t note;                        /* the event's tone (the bells, BUBBLES' climb) */
 } haave_spr_t;
@@ -99,16 +102,17 @@ static int haave_spr_event(haave_spr_t *v, int first)
         v->amp = 10000;
         v->gap = SPR_MS(haave_spr_r(60, 140));
         break;
-    case HS_OWL:                                         /* soft low hoots */
+    case HS_OWL:                                         /* soft hoots, above the pad and the voice (lower, they hid
+                                                          * it, and a small speaker loses it) */
         if (first) {
             v->ev = (uint8_t)haave_spr_r(1, 2);
-            v->note = haave_spr_tone(58);
+            v->note = haave_spr_tone(65);
         }
         v->p0 = v->note * 16;
         v->p1 = v->p0 - 20;
-        v->len = SPR_MS(400);
+        v->len = SPR_MS(450);
         v->atk = SPR_MS(90);
-        v->amp = 13000;
+        v->amp = 15000;
         v->gap = SPR_MS(haave_spr_r(200, 300));
         break;
     case HS_CRICKET:                                     /* trains of tiny high pulses */
@@ -120,20 +124,22 @@ static int haave_spr_event(haave_spr_t *v, int first)
         v->amp = 4200;
         v->gap = SPR_MS(v->ev % 6u ? 13 : haave_spr_r(250, 380));
         break;
-    case HS_LEAVES:                                      /* leaves stirring: a breeze through them, many dry little
-                                                          * ticks rising and settling, drifting across */
+    case HS_LEAVES:                                      /* leaves stirring: a breeze through them, a soft band of
+                                                          * noise fluttering (no ticks: they were a scratch), rising
+                                                          * and settling, drifting across */
         if (first)
             v->ev = (uint8_t)haave_spr_r(1, 2);
-        v->k = K_DUST;
-        v->dens = 10;                                    /* (~430 a second: a rustle, not a crackle) */
-        v->p0 = (int32_t)haave_spr_r(2600, 3400);
-        v->p1 = v->p0 + (int32_t)haave_spr_r(300, 800);  /* (brightening a little as it stirs) */
-        v->q = 24000;
-        v->cb = 15000;                                   /* (each tick's edge rounded: dry, not sharp) */
-        v->len = SPR_MS(haave_spr_r(800, 1400));
+        v->k = K_NOISE;
+        v->flut = 1;
+        v->p0 = (int32_t)haave_spr_r(1600, 2100);
+        v->p1 = v->p0 + (int32_t)haave_spr_r(300, 700);  /* (brightening a little as it stirs) */
+        v->q = 30000;                                    /* (a wide band) */
+        v->ca = 14000;                                   /* (the noise darker before, softer after: no hiss) */
+        v->cb = 12000;
+        v->len = SPR_MS(haave_spr_r(900, 1500));
         v->atk = v->len * 2u / 5u;
-        v->amp = (int32_t)haave_spr_r(18000, 26000);
-        v->gap = SPR_MS(haave_spr_r(60, 260));
+        v->amp = (int32_t)haave_spr_r(12000, 18000);
+        v->gap = SPR_MS(haave_spr_r(80, 300));
         v->pan_to = (int32_t)haave_spr_r(6000, 26000);
         break;
     case HS_DROPS:                                       /* drops: a quick sine leaping up */
@@ -265,7 +271,7 @@ static int haave_spr_event(haave_spr_t *v, int first)
     }
     if (v->k == K_STRIKE) {                              /* (the bells: struck now) */
         if (v->note < 0)
-            haave_gong(36);
+            haave_gong(60);
         else
             haave_strike(DL_SPARKLE | DL_USER, HAAVE_BELL, (uint32_t)v->note, (uint32_t)v->amp);
         return 1;
@@ -316,7 +322,7 @@ static void haave_spr_key(uint32_t k)
 /* fx.c: a block of the sprinkles into the dry mix (l, r) and the echo's and reverb's sends (sd, sv); each kind at its
  * level beside the music (Q8: noise through a narrow band, sparse specks and low rumbles need more than a sine) */
 #define SPR_GAIN 22700                   /* (about 4 dB under the instruments' level beside the pad) */
-static const uint16_t SPR_KIND_GAIN[HS_N] = {256, 256, 320, 720, 640, 256, 256, 320, 3100, 1020, 750, 3600, 510,
+static const uint16_t SPR_KIND_GAIN[HS_N] = {256, 256, 360, 720, 640, 256, 256, 320, 3100, 1020, 750, 3600, 510,
                                              256, 256, 256};
 static void haave_spr_mix(int32_t *l, int32_t *r, int32_t *sd, int32_t *sv, uint32_t n)
 {
@@ -381,6 +387,16 @@ static void haave_spr_mix(int32_t *l, int32_t *r, int32_t *sd, int32_t *sv, uint
                     else if (v->lo < -98304)
                         v->lo = -98304;
                     x = v->lpo ? v->lo : v->k == K_DUST ? v->bp << 1 : v->bp;
+                    if (v->flut) {                       /* (a new level every 2..9 ms, mostly low, now and then a
+                                                          * rush; ~1.5 ms to get there: soft, never a click) */
+                        if (!v->flw--) {
+                            uint32_t r = (v->rng >> 9) & 255u;
+                            v->flw = 90u + ((v->rng >> 3) & 255u) + ((v->rng >> 11) & 63u);
+                            v->flt = (int32_t)(2000u + r * r / 2u);
+                        }
+                        v->fl += (v->flt - v->fl) >> 6;
+                        x = (int32_t)(((int64_t)x * v->fl) >> 15);
+                    }
                     if (v->cb) {                         /* (softened after) */
                         v->c2 += ((x - v->c2) * v->cb) >> 15;
                         x = v->c2;

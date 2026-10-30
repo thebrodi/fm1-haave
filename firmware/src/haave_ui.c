@@ -44,7 +44,7 @@ typedef struct {
     uint8_t style, prog;                 /* the behaviour and progression it starts with (ALGORITHM, SELECT) */
     int8_t reg;                          /* semitones the whole world sits from the middle (CAVE: lower) */
 } haave_world_t;
-#define SUB {ENGI_ANALOG, AN_SUB_BASS, NO_PATCH, 88}
+#define SUB {ENGI_ANALOG, AN_SUB_BASS, NO_PATCH, 92}
 static const haave_world_t HAAVE_WORLDS[] = {
     {"GLASS", 2, 0, 72, {{ENGI_FM6, FM6_PAD, NO_PATCH, 102}, {ENGI_FM6, FM6_MARIMBA, DF_VIBES, 113}, SUB},
      {FO_CHOIR, {0, 20, 70, 3, 30, 40, 72, 0}, 12, 82},             /* airy, high: "aah" opening to "eh" */
@@ -55,7 +55,7 @@ static const haave_world_t HAAVE_WORLDS[] = {
     {"DUSK", 5, 0, 80, {{ENGI_FM6, FM6_PAD, DF_CLOUD, 110}, {ENGI_FM6, FM6_MARIMBA, DF_SOFT_WOOD, 127}, SUB},
      {FO_CHOIR, {127, 127, 0, -5, 18, 28, 38, 0}, -12, 93},         /* a low, soft hum */
      RV_ROOM, 70, DT_8D, 50, DS_PULSE, 4},
-    {"NIGHT", 4, 1, 60, {{ENGI_FM6, FM6_PAD, DF_DARK_PAD, 102}, {ENGI_FM6, FM6_MARIMBA, DF_TONEWOOD, 116}, SUB},
+    {"NIGHT", 4, 1, 60, {{ENGI_FM6, FM6_PAD, DF_DARK_PAD, 106}, {ENGI_FM6, FM6_MARIMBA, DF_TONEWOOD, 116}, SUB},
      {FO_WHISPER, {95, 127, 100, -6, 40, 112, 44, 0}, -12, 104},    /* a dark, low whisper */
      RV_HALL, 88, DT_2, 30, DS_SWELL, 3},
     {"NEON", 7, 0, 84, {{ENGI_ANALOG, AN_PWM_STR, NO_PATCH, 87}, {ENGI_FM6, FM6_MARIMBA, DF_DX_MARIMBA, 116},
@@ -96,7 +96,8 @@ static const haave_world_t HAAVE_WORLDS[] = {
 static const struct { uint8_t patch, level; } HAAVE_BELLS[14] = {
     {DF_CLEAR_BELL, 112}, {NO_PATCH, 0}, {NO_PATCH, 0}, {DF_CLEAR_BELL, 112}, {DF_CRYSTAL, 102}, {NO_PATCH, 0},
     {NO_PATCH, 0}, {NO_PATCH, 0}, {NO_PATCH, 0}, {DF_CLEAR_BELL, 100}, {NO_PATCH, 0}, {DF_DEEP_BELL, 106},
-    {NO_PATCH, 0}, {NO_PATCH, 0}};
+    {NO_PATCH, 0}, {DF_BOWL, 100}};                     /* (CRYSTAL: a metal bowl, its gong too: the crystal's pure
+                                                          * sine struck low was no gong) */
 
 enum { DK_SPACE, DK_ECHO, DK_GLOW, DK_MOTION, DK_N };
 static const char *const HAAVE_KNOB[DK_N] = {"SPACE", "ECHO", "GLOW", "MOTION"};
@@ -131,7 +132,8 @@ static void haave_glow(track_t *t, int32_t gl)
 static const struct { uint8_t sync, wave, amp, atk; int8_t glow; } PAD_BEH[DS_N] = {
     {2, 0, 22, 84, -6},                  /* DRIFT: a slow sway over two bars, softer */
     {4, 0, 14, 68, 0},                   /* RIPPLE: a gentle half-bar movement */
-    {3, 0, 84, 92, -10},                 /* SWELL: breathing in and out every bar */
+    {3, 0, 66, 92, -2},                  /* SWELL: breathing in and out every bar (not so deep, not so dark: a
+                                          * small speaker kept little of NIGHT's and CAVE's dark pads) */
     {0, 0, 0, 48, 14},                   /* CHIME: still, quicker and brighter */
     {5, 1, 64, 36, 4},                   /* PULSE: a soft pulse on every beat */
 };
@@ -245,7 +247,7 @@ static const haave_sound_t HAAVE_SYNTH[DY_N] = {
     {ENGI_FM6, FM6_TINE, DF_SOFT_KEYS, 105},             /* soft electric keys */
     {ENGI_ANALOG, AN_SINE_KEY, NO_PATCH, 91},            /* a glassy sine */
     {ENGI_WHEEL, WH_SOFT_FLUTE, NO_PATCH, 106},          /* a breathy flute */
-    {ENGI_FM6, FM6_PAD, DF_HOLLOW, 104},                 /* a hollow tone, an ocarina in the dark, a sub under it */
+    {ENGI_FM6, FM6_PAD, DF_HOLLOW, 116},                 /* a hollow tone, an ocarina in the dark, a sub under it */
 };
 /* each world's SYNTH to start with (not its bells' kind: CRYSTAL and RAIN the glassy sine, as OCEAN; CAVE the hollow
  * one), and how it starts there: its level (LEVEL steps, 2 a dB) and attack (an FM6 sound: its own) */
@@ -253,9 +255,24 @@ static const struct { uint8_t synth; int8_t level, atk; } HAAVE_SYNTH0[14] = {
     {DY_KEYS, 0, 24}, {DY_WARM, 0, 24}, {DY_KEYS, 0, 24}, {DY_WARM, 0, 24}, {DY_WARM, 0, 24}, {DY_WARM, 0, 24},
     {DY_GLASS, 0, 24}, {DY_AIR, 0, 24}, {DY_GLASS, 0, 24}, {DY_GLASS, 0, 24}, {DY_GLASS, 0, 24}, {DY_HOLLOW, 0, 24},
     {DY_GLASS, 0, 24}, {DY_GLASS, 0, 24}};
-/* BASS's: the same soft bass in every world, a triangle through a low filter, no resonance or drive (the square's
- * honk gone), starting gently */
-static const haave_sound_t HAAVE_BASS_SOFT = {ENGI_ANALOG, AN_SQR_BASS, NO_PATCH, 94};
+/* BASS's: the same soft bass in every world (haave_bass_tone), starting gently */
+static const haave_sound_t HAAVE_BASS_SOFT = {ENGI_ANALOG, AN_SUB_BASS, NO_PATCH, 95};
+
+/* Haave's bass (BASS's, and the world's but NEON's square): a saw through a low-pass at ~450 Hz, no resonance, drive or
+ * filter envelope (no pluck as it starts). Round on headphones, and its overtones up to ~800 Hz carry it on the FM-1's
+ * small speaker, where a sine's or a triangle's 41..110 Hz alone is lost (~18 dB more there, as loud on headphones,
+ * 30 dB down above 1 kHz) */
+static void haave_bass_tone(track_t *t)
+{
+    t->p[P_E0 + 0] = 0;                                  /* WAVE: SAW */
+    t->p[P_E0 + 1] = 0;                                  /* DTN */
+    t->p[P_E0 + 3] = 0;                                  /* NOIS */
+    t->p[P_E0 + 4] = haave_cut[t - trk] = 54;            /* CUT: ~450 Hz */
+    t->p[P_E0 + 5] = 4;                                  /* RES */
+    t->p[P_E0 + 6] = 0;                                  /* DRV */
+    t->p[P_E0 + 7] = 30;                                 /* KTR */
+    t->p[P_ED_FLT] = 0;
+}
 static volatile uint8_t haave_synth;     /* SYNTH's sound now (DY_*) */
 static uint8_t haave_p4 = 0xFF, haave_p3 = 0xFF;   /* what parts 4 and 3 hold: 0 the world's, else SYNTH's 1 + DY_* /
                                                     * BASS's 1 */
@@ -301,15 +318,13 @@ static void haave_inst_load(uint32_t m)
     }
     if ((m >> HAAVE_BASS) & 1u) {
         if (p3) {
-            track_t *t = &trk[HAAVE_BASS];
-            haave_part(t, &HAAVE_BASS_SOFT, 10, 100, 50);   /* (a gentle start, held, a short tail) */
-            t->p[P_E0 + 0] = 2;                          /* WAVE: TRI */
-            t->p[P_E0 + 4] = 46;                         /* CUT: low, round */
-            t->p[P_E0 + 5] = 6;                          /* RES */
-            t->p[P_E0 + 6] = 0;                          /* DRV */
-            t->p[P_E0 + 7] = 40;                         /* KTR */
-        } else
+            haave_part(&trk[HAAVE_BASS], &HAAVE_BASS_SOFT, 34, 100, 60);   /* (a soft start, held, a short tail) */
+            haave_bass_tone(&trk[HAAVE_BASS]);
+        } else {
             haave_part(&trk[HAAVE_BASS], &d->part[2], 40, 120, 90);
+            if (d->part[2].preset == AN_SUB_BASS)
+                haave_bass_tone(&trk[HAAVE_BASS]);
+        }
         haave_p3 = p3;
     }
 }

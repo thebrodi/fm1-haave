@@ -35,14 +35,15 @@ PATCHES = [
         op(r=(34, 30, 40, 30), l=(99, 90, 86, 0), ol=56, fc=3, det=8),
         op(ol=0)],
         lfs=28, lfd=40, lpmd=3, lfw=0, lpms=2)),
-    # A dark pad: round carriers, gentle modulators, a sub-octave underneath.
+    # A dark pad: round carriers, gentle modulators (enough of the mids for a small speaker), a soft sub-octave
+    # underneath.
     ("DARK PAD", voice("DARK PAD", 5, [
         op(r=(34, 28, 40, 34), l=(99, 95, 92, 0), ol=94, det=5),
-        op(r=(30, 28, 40, 34), l=(80, 82, 78, 0), ol=48, bp=48, rd=45, rc=0),
+        op(r=(30, 28, 40, 34), l=(80, 82, 78, 0), ol=56, bp=48, rd=45, rc=0),
         op(r=(34, 28, 40, 34), l=(99, 95, 92, 0), ol=92, det=10),
-        op(r=(30, 28, 40, 34), l=(78, 80, 76, 0), ol=44, fc=2, bp=48, rd=45, rc=0),
-        op(r=(36, 28, 40, 34), l=(99, 95, 92, 0), ol=82, fc=0, det=7),
-        op(r=(30, 28, 40, 34), l=(70, 76, 72, 0), ol=36)],
+        op(r=(30, 28, 40, 34), l=(78, 80, 76, 0), ol=52, fc=2, bp=48, rd=45, rc=0),
+        op(r=(36, 28, 40, 34), l=(99, 95, 92, 0), ol=74, fc=0, det=7),
+        op(r=(30, 28, 40, 34), l=(70, 76, 72, 0), ol=44)],
         fb=1, lfs=26, lfd=50, lpmd=4, lfw=0, lpms=2)),
     # An 80s crystal bell: a bright tine on top of a glassy body, a little chorus of detune.
     ("CRYSTAL", voice("CRYSTAL", 5, [
@@ -200,10 +201,10 @@ PATCHES = [
     # under them, swelling in, a slow vibrato coming late.
     ("HOLLOW", voice("HOLLOW", 5, [
         op(r=(52, 40, 30, 42), l=(99, 92, 88, 0), ol=96),
-        op(r=(50, 40, 30, 42), l=(86, 80, 76, 0), ol=54, fc=2, kvs=2, bp=48, rd=50, rc=0),
+        op(r=(50, 40, 30, 42), l=(86, 80, 76, 0), ol=62, fc=2, kvs=2, bp=48, rd=50, rc=0),
         op(r=(52, 40, 30, 42), l=(99, 92, 88, 0), ol=84, det=9),
-        op(r=(50, 40, 30, 42), l=(82, 78, 74, 0), ol=46, fc=2, kvs=2, bp=48, rd=50, rc=0),
-        op(r=(48, 40, 30, 42), l=(99, 92, 88, 0), ol=64, fc=0, det=6),
+        op(r=(50, 40, 30, 42), l=(82, 78, 74, 0), ol=56, fc=2, kvs=2, bp=48, rd=50, rc=0),
+        op(r=(48, 40, 30, 42), l=(99, 92, 88, 0), ol=52, fc=0, det=6),
         op(ol=0)],
         fb=0, lfs=30, lfd=50, lpmd=5, lfw=4, lpms=2)),
 ]
